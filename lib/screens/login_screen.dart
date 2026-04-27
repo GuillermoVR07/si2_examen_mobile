@@ -100,6 +100,202 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _mostrarRegistroCliente() async {
+    final nombreController = TextEditingController();
+    final emailController = TextEditingController();
+    final telefonoController = TextEditingController();
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    bool loading = false;
+    String? error;
+    bool obscurePassword = true;
+    bool obscureConfirmPassword = true;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> submit() async {
+              final nombre = nombreController.text.trim();
+              final email = emailController.text.trim();
+              final telefono = telefonoController.text.trim();
+              final password = passwordController.text;
+              final confirmPassword = confirmPasswordController.text;
+
+              if (nombre.length < 3) {
+                setDialogState(() => error = 'El nombre debe tener al menos 3 caracteres');
+                return;
+              }
+              if (email.isEmpty || !email.contains('@')) {
+                setDialogState(() => error = 'Ingresa un correo válido');
+                return;
+              }
+              if (password.length < 8) {
+                setDialogState(() => error = 'La contraseña debe tener mínimo 8 caracteres');
+                return;
+              }
+              if (password != confirmPassword) {
+                setDialogState(() => error = 'Las contraseñas no coinciden');
+                return;
+              }
+
+              setDialogState(() {
+                loading = true;
+                error = null;
+              });
+
+              final result = await _authService.registrarCliente(
+                nombre: nombre,
+                email: email,
+                password: password,
+                telefono: telefono.isEmpty ? null : telefono,
+              );
+
+              if (!mounted) return;
+
+              if (result['success'] == true) {
+                _emailController.text = email;
+                _passwordController.text = password;
+                if (Navigator.of(dialogContext).canPop()) {
+                  Navigator.of(dialogContext).pop();
+                }
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Registro exitoso. Ya puedes iniciar sesión como cliente.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                return;
+              }
+
+              setDialogState(() {
+                loading = false;
+                error = (result['error'] ?? 'No se pudo registrar el cliente').toString();
+              });
+            }
+
+            return AlertDialog(
+              title: const Text('Registro de Cliente'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Este registro es solo para clientes. Los técnicos los crea el taller.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: nombreController,
+                      enabled: !loading,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre completo',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: emailController,
+                      enabled: !loading,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Correo electrónico',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: telefonoController,
+                      enabled: !loading,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Teléfono (opcional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: passwordController,
+                      enabled: !loading,
+                      obscureText: obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setDialogState(() {
+                              obscurePassword = !obscurePassword;
+                            });
+                          },
+                          icon: Icon(
+                            obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: confirmPasswordController,
+                      enabled: !loading,
+                      obscureText: obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirmar contraseña',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setDialogState(() {
+                              obscureConfirmPassword = !obscureConfirmPassword;
+                            });
+                          },
+                          icon: Icon(
+                            obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        error!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: loading ? null : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: loading ? null : submit,
+                  child: loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Registrar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nombreController.dispose();
+    emailController.dispose();
+    telefonoController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+  }
+
   // Auto-login para pruebas: Cliente (Conductor)
   Future<void> _autoLoginConductor() async {
     AppLogger.separator(title: 'AUTO-LOGIN CONDUCTOR');
@@ -330,6 +526,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.white,
                           ),
                         ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _mostrarRegistroCliente,
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('Registrarse como Cliente'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: BorderSide(color: Colors.red.shade300),
+                    foregroundColor: Colors.red.shade700,
+                  ),
                 ),
                 const SizedBox(height: 24),
 

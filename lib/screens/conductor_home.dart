@@ -75,6 +75,11 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () => Navigator.pushNamed(context, '/notificaciones'),
+            tooltip: 'Notificaciones',
+          ),
+          IconButton(
             icon: const Icon(Icons.person),
             onPressed: () => Navigator.pushNamed(context, '/perfil'),
             tooltip: 'Mi Perfil',
@@ -219,6 +224,18 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
                           color: Colors.orange,
                           onTap: () {
                             Navigator.pushNamed(context, '/historial-emergencias');
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // My Payments Card
+                        _buildActionCard(
+                          icon: Icons.payments,
+                          title: 'Mis Pagos',
+                          description: 'Ver pagos pendientes y completados',
+                          color: Colors.blue,
+                          onTap: () {
+                            Navigator.pushNamed(context, '/mis-pagos');
                           },
                         ),
                         const SizedBox(height: 16),

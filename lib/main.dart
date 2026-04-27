@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 import 'screens/conductor_home.dart';
@@ -10,8 +11,11 @@ import 'screens/vehiculo_debug_screen.dart';
 import 'screens/perfil_screen.dart';
 import 'screens/reportar_emergencia_screen.dart';
 import 'screens/historial_emergencias_screen.dart';
+import 'screens/mis_pagos_screen.dart';
 import 'screens/asignacion_detalle_screen.dart';
 import 'screens/mensajes_screen.dart';
+import 'screens/notificaciones_screen.dart';
+import 'config/stripe_config.dart';
 import 'services/auth_service.dart';
 import 'services/tecnico_auth_service.dart';
 import 'services/notification_service.dart';
@@ -21,6 +25,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   AppLogger.separator(title: 'INICIANDO APLICACIÓN');
+
+  // Stripe
+  Stripe.publishableKey = StripeConfig.publishableKey;
 
   // SharedPreferences
   try {
@@ -49,6 +56,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NotificationService.navigatorKey,
       title: 'Emergencias Vehiculares',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
@@ -68,6 +76,8 @@ class MyApp extends StatelessWidget {
             const ReportarEmergenciaScreen(vehiculos: []),
         '/historial-emergencias': (context) =>
             const HistorialEmergenciasScreen(),
+        '/mis-pagos': (context) => const MisPagosScreen(),
+        '/notificaciones': (context) => const NotificacionesScreen(),
         '/asignacion-detalle': (context) {
           final id = ModalRoute.of(context)?.settings.arguments as int? ?? 0;
           return AsignacionDetalleScreen(idAsignacion: id);

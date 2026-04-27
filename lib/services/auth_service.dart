@@ -10,6 +10,81 @@ class AuthService {
   static const String baseUrl = ApiConfig.baseUrl;
   static const String _tag = 'AuthService';
 
+  // Registro exclusivo para clientes (rol=1 en backend)
+  Future<Map<String, dynamic>> registrarCliente({
+    required String nombre,
+    required String email,
+    required String password,
+    String? telefono,
+  }) async {
+    AppLogger.separator(title: 'INICIANDO REGISTRO CLIENTE');
+    AppLogger.auth('Intento de registro cliente con: $email', tag: _tag);
+
+    try {
+      final url = '$baseUrl/usuarios/registro';
+      final body = {
+        'nombre': nombre,
+        'email': email,
+        'password': password,
+        'telefono': (telefono == null || telefono.trim().isEmpty) ? null : telefono.trim(),
+      };
+
+      AppLogger.httpRequest(
+        'POST',
+        url,
+        tag: _tag,
+        body: body,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      final startTime = DateTime.now();
+      final response = await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      final duration = DateTime.now().difference(startTime);
+      AppLogger.httpResponse(
+        'POST',
+        url,
+        response.statusCode,
+        tag: _tag,
+        duration: duration,
+        body: response.body.length > 500
+            ? '${response.body.substring(0, 500)}...'
+            : response.body,
+      );
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        AppLogger.success('Registro cliente exitoso para: $email', tag: _tag);
+        return {'success': true, 'data': data};
+      }
+
+      try {
+        final errorData = jsonDecode(response.body);
+        final errorMessage = errorData['detail'] ?? 'Error en registro';
+        return {'success': false, 'error': errorMessage.toString()};
+      } catch (_) {
+        return {
+          'success': false,
+          'error': 'Error del servidor: ${response.statusCode}',
+        };
+      }
+    } on TimeoutException {
+      return {
+        'success': false,
+        'error': 'Timeout: No se puede conectar con el servidor. Intenta de nuevo.',
+      };
+    } catch (e) {
+      AppLogger.error('Error inesperado en registro cliente', tag: _tag, error: e);
+      return {'success': false, 'error': 'Error de conexión: $e'};
+    }
+  }
+
   // Login with email and password
   Future<Map<String, dynamic>> login(String email, String password) async {
     AppLogger.separator(title: 'INICIANDO LOGIN');

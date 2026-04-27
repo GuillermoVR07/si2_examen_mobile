@@ -70,7 +70,7 @@ class _CompletarServicioDialogState extends State<CompletarServicioDialog> {
 
     try {
       final form = CompletarServicioForm(
-        costoEstimado: costo,
+        costoFinal: costo,
         resumenTrabajo: resumen,
       );
 
@@ -94,7 +94,7 @@ class _CompletarServicioDialogState extends State<CompletarServicioDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Costo estimado (COP)'),
+            const Text('Cobro final (COP)'),
             const SizedBox(height: 8),
             TextField(
               controller: _costoController,

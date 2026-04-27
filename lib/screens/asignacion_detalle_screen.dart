@@ -36,7 +36,7 @@ class _AsignacionDetalleScreenState extends State<AsignacionDetalleScreen> {
     try {
       final resultado = await _asignacionesService.completarServicio(
         widget.idAsignacion,
-        costoEstimado: form.costoEstimado,
+        costoFinal: form.costoFinal,
         resumenTrabajo: form.resumenTrabajo,
       );
 

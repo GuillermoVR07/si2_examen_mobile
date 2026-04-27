@@ -4,6 +4,7 @@ class CandidatoAsignacion {
   final int idTaller;
   final double? distanciaKm;
   final double? scoreTotal;
+  final double? ratingPromedio;
   final bool seleccionado;
   final TallerMini taller;
 
@@ -13,6 +14,7 @@ class CandidatoAsignacion {
     required this.idTaller,
     this.distanciaKm,
     this.scoreTotal,
+    this.ratingPromedio,
     required this.seleccionado,
     required this.taller,
   });
@@ -24,6 +26,7 @@ class CandidatoAsignacion {
       idTaller: json['id_taller'] ?? 0,
       distanciaKm: (json['distancia_km'] as num?)?.toDouble(),
       scoreTotal: (json['score_total'] as num?)?.toDouble(),
+      ratingPromedio: (json['rating_promedio'] as num?)?.toDouble(),
       seleccionado: json['seleccionado'] ?? false,
       taller: json['taller'] != null
           ? TallerMini.fromJson(json['taller'] as Map<String, dynamic>)

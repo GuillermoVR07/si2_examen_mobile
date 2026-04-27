@@ -229,7 +229,7 @@ class TecnicoAsignacionesService {
 
   Future<AsignacionResponse> completarServicio(
     int idAsignacion, {
-    double? costoEstimado,
+    double? costoFinal,
     String? resumenTrabajo,
   }) async {
     try {
@@ -239,8 +239,8 @@ class TecnicoAsignacionesService {
       debugPrint('[AUTH DBG] completarServicio token=${_tokenPreview(token)}');
 
       final body = <String, dynamic>{};
-      if (costoEstimado != null) {
-        body['costo_estimado'] = costoEstimado;
+      if (costoFinal != null) {
+        body['costo_final'] = costoFinal;
       }
       if (resumenTrabajo != null && resumenTrabajo.trim().isNotEmpty) {
         body['resumen_trabajo'] = resumenTrabajo.trim();
@@ -275,12 +275,12 @@ class TecnicoAsignacionesService {
 
   Future<AsignacionResponse> completar(
     int idAsignacion, {
-    double? costoEstimado,
+    double? costoFinal,
     String? resumenTrabajo,
   }) {
     return completarServicio(
       idAsignacion,
-      costoEstimado: costoEstimado,
+      costoFinal: costoFinal,
       resumenTrabajo: resumenTrabajo,
     );
   }

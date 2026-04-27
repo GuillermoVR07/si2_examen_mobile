@@ -174,7 +174,7 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Costo estimado (opcional)'),
+              const Text('Cobro final (opcional)'),
               const SizedBox(height: 8),
               TextField(
                 controller: costoController,
@@ -215,7 +215,7 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
 
                   final updated = await _tecnicoService.completar(
                     _asignacion!.idAsignacion,
-                    costoEstimado: costo,
+                    costoFinal: costo,
                     resumenTrabajo: resumen,
                   );
                   _log('_handleCompletar -> OK nuevoEstado=${updated.estadoAsignacion}');
@@ -377,7 +377,7 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
             height: 180,
             width: double.infinity,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
+            errorBuilder: (context, error, stackTrace) => Container(
               height: 80,
               color: Colors.grey[200],
               child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
@@ -486,6 +486,11 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
         appBar: AppBar(
           title: const Text('Mi Asignacion'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () => Navigator.pushNamed(context, '/notificaciones'),
+              tooltip: 'Notificaciones',
+            ),
             IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAsignacion),
             IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
           ],
@@ -500,6 +505,11 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
       appBar: AppBar(
         title: const Text('Mi Asignacion Actual'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () => Navigator.pushNamed(context, '/notificaciones'),
+            tooltip: 'Notificaciones',
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAsignacion),
           IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],

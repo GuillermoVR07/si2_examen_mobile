@@ -264,6 +264,8 @@ class _SeleccionarTallerScreenState extends State<SeleccionarTallerScreen> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
+                                  const SizedBox(height: 4),
+                                  _buildRatingRow(candidato.ratingPromedio),
                                 ],
                               ),
                             ),
@@ -387,6 +389,42 @@ class _SeleccionarTallerScreenState extends State<SeleccionarTallerScreen> {
         label: const Text('Confirmar'),
         icon: const Icon(Icons.check),
       ),
+    );
+  }
+
+  Widget _buildRatingRow(double? ratingPromedio) {
+    if (ratingPromedio == null) {
+      return Text(
+        'Sin reseñas todavía',
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.grey.shade600,
+          fontStyle: FontStyle.italic,
+        ),
+      );
+    }
+
+    final stars = ratingPromedio.round().clamp(0, 5);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 5; i++)
+          Icon(
+            i < stars ? Icons.star : Icons.star_border,
+            size: 16,
+            color: Colors.amber.shade700,
+          ),
+        const SizedBox(width: 6),
+        Text(
+          ratingPromedio.toStringAsFixed(1),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade700,
+          ),
+        ),
+      ],
     );
   }
 }
