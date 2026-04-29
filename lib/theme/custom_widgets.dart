@@ -129,6 +129,7 @@ class PrimaryButton extends StatelessWidget {
   final VoidCallback onPressed;
   final bool isLoading;
   final bool isDisabled;
+  final IconData? icon;
 
   const PrimaryButton({
     Key? key,
@@ -136,25 +137,35 @@ class PrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.isLoading = false,
     this.isDisabled = false,
+    this.icon,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton(
-        onPressed: isLoading || isDisabled ? null : onPressed,
-        child: isLoading
-            ? const SizedBox(
+      child: isLoading
+          ? ElevatedButton(
+              onPressed: null,
+              child: const SizedBox(
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
-              )
-            : Text(text),
-      ),
+              ),
+            )
+          : icon != null
+              ? ElevatedButton.icon(
+                  onPressed: isDisabled ? null : onPressed,
+                  icon: Icon(icon),
+                  label: Text(text),
+                )
+              : ElevatedButton(
+                  onPressed: isDisabled ? null : onPressed,
+                  child: Text(text),
+                ),
     );
   }
 }

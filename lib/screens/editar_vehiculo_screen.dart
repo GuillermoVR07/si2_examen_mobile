@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../services/vehiculo_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/custom_widgets.dart';
 
 class EditarVehiculoScreen extends StatefulWidget {
   final Map<String, dynamic> vehiculo;
   
-  const EditarVehiculoScreen({required this.vehiculo});
+  const EditarVehiculoScreen({super.key, required this.vehiculo});
   
   @override
   State<EditarVehiculoScreen> createState() => _EditarVehiculoScreenState();
@@ -37,122 +39,161 @@ class _EditarVehiculoScreenState extends State<EditarVehiculoScreen> {
     
     final resultado = await vehiculoService.editarVehiculo(
       widget.vehiculo['id_vehiculo'],
-      placa: placaController.text,
-      marca: marcaController.text.isEmpty ? null : marcaController.text,
-      modelo: modeloController.text.isEmpty ? null : modeloController.text,
-      anio: anioController.text.isEmpty ? null : int.tryParse(anioController.text),
-      color: colorController.text.isEmpty ? null : colorController.text,
+      placa: placaController.text.trim(), // Agregamos "placa:"
+      marca: marcaController.text.trim(), // Agregamos "marca:"
+      modelo: modeloController.text.trim(), // Agregamos "modelo:"
+      anio: int.tryParse(anioController.text.trim()) ?? 0, // Agregamos "anio:"
+      color: colorController.text.trim(), // Agregamos "color:"
     );
+    
+    if (!mounted) return;
     
     setState(() => cargando = false);
     
     if (resultado['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ Vehículo actualizado'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Vehículo actualizado correctamente'),
+          backgroundColor: AppTheme.success,
+        )
       );
-      Navigator.pop(context, resultado['vehiculo']);
+      Navigator.pop(context, true);
     } else {
-      // Si el error es de autenticación expirada, redirigir a login
-      if (resultado['code'] == 'AUTH_EXPIRED') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sesión expirada. Debes iniciar sesión nuevamente.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        Future.delayed(Duration(seconds: 2), () {
-          Navigator.of(context).pushReplacementNamed('/login');
-        });
-      } else {
-        setState(() => error = resultado['error']);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ ${resultado['error']}'), backgroundColor: Colors.red),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(resultado['error'] ?? 'Error al actualizar el vehículo'),
+          backgroundColor: AppTheme.danger,
+        )
+      );
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text('Editar Vehículo'),
-        centerTitle: true,
+        title: const Text('Editar Vehículo'),
+        centerTitle: false,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (error != null)
-              Container(
-                padding: EdgeInsets.all(12),
-                margin: EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: 16),
+            ModernCard(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.directions_car, color: AppTheme.primary),
+                        SizedBox(width: 8),
+                        Text(
+                          'Datos del Vehículo',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(color: AppTheme.border, height: 32),
+                    
+                    _buildTextField(
+                      label: 'Placa',
+                      controller: placaController,
+                      icon: Icons.pin,
+                      hint: 'Ej: 1234ABC',
+                    ),
+                    _buildTextField(
+                      label: 'Marca',
+                      controller: marcaController,
+                      icon: Icons.branding_watermark,
+                      hint: 'Ej: Toyota',
+                    ),
+                    _buildTextField(
+                      label: 'Modelo',
+                      controller: modeloController,
+                      icon: Icons.directions_car_filled,
+                      hint: 'Ej: Corolla',
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            label: 'Año',
+                            controller: anioController,
+                            icon: Icons.calendar_today,
+                            hint: 'Ej: 2020',
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTextField(
+                            label: 'Color',
+                            controller: colorController,
+                            icon: Icons.palette,
+                            hint: 'Ej: Blanco',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                child: Text(error!, style: TextStyle(color: Colors.red.shade700)),
-              ),
-            
-            Text('Placa', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            TextField(
-              controller: placaController,
-              decoration: InputDecoration(border: OutlineInputBorder(), prefixIcon: Icon(Icons.directions_car)),
-              textCapitalization: TextCapitalization.characters,
-            ),
-            SizedBox(height: 20),
-            
-            Text('Marca', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            TextField(
-              controller: marcaController,
-              decoration: InputDecoration(border: OutlineInputBorder(), prefixIcon: Icon(Icons.local_offer)),
-            ),
-            SizedBox(height: 20),
-            
-            Text('Modelo', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            TextField(
-              controller: modeloController,
-              decoration: InputDecoration(border: OutlineInputBorder(), prefixIcon: Icon(Icons.directions_car_filled)),
-            ),
-            SizedBox(height: 20),
-            
-            Text('Año', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            TextField(
-              controller: anioController,
-              decoration: InputDecoration(border: OutlineInputBorder(), prefixIcon: Icon(Icons.calendar_today)),
-              keyboardType: TextInputType.number,
-            ),
-            SizedBox(height: 20),
-            
-            Text('Color', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            TextField(
-              controller: colorController,
-              decoration: InputDecoration(border: OutlineInputBorder(), prefixIcon: Icon(Icons.palette)),
-            ),
-            SizedBox(height: 30),
-            
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: cargando ? null : guardarCambios,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: cargando
-                    ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white))
-                    : Text('Guardar Cambios', style: TextStyle(fontSize: 16, color: Colors.white)),
               ),
             ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: PrimaryButton(
+                text: 'Guardar Cambios',
+                onPressed: guardarCambios,
+                isLoading: cargando,
+              ),
+            ),
+            const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    required String hint,
+    TextInputType? keyboardType,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
+            decoration: InputDecoration(
+              hintText: hint,
+              prefixIcon: Icon(icon, color: AppTheme.textMuted, size: 20),
+            ),
+          ),
+        ],
       ),
     );
   }

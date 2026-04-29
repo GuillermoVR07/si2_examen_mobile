@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/vehiculo_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/custom_widgets.dart';
 import 'registrar_vehiculo_screen.dart';
 import 'editar_vehiculo_screen.dart';
 
 class MisVehiculosScreen extends StatefulWidget {
+  const MisVehiculosScreen({super.key});
+
   @override
   State<MisVehiculosScreen> createState() => _MisVehiculosScreenState();
 }
@@ -25,6 +29,7 @@ class _MisVehiculosScreenState extends State<MisVehiculosScreen> {
     setState(() => cargando = true);
     
     final resultado = await vehiculoService.listarMisVehiculos();
+    if (!mounted) return;
     
     if (resultado['success']) {
       setState(() {
@@ -34,17 +39,16 @@ class _MisVehiculosScreenState extends State<MisVehiculosScreen> {
     } else {
       setState(() => error = resultado['error']);
       
-      // Si el error es de autenticación expirada, redirigir a login
       if (resultado['code'] == 'AUTH_EXPIRED') {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Sesión expirada. Debes iniciar sesión nuevamente.'),
-            backgroundColor: Colors.orange,
+            backgroundColor: AppTheme.warning,
             duration: Duration(seconds: 3),
           ),
         );
-        Future.delayed(Duration(seconds: 2), () {
-          Navigator.of(context).pushReplacementNamed('/login');
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) Navigator.of(context).pushReplacementNamed('/login');
         });
       }
     }
@@ -55,11 +59,11 @@ class _MisVehiculosScreenState extends State<MisVehiculosScreen> {
   void irRegistrar() async {
     final resultado = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => RegistrarVehiculoScreen()),
+      MaterialPageRoute(builder: (context) =>  RegistrarVehiculoScreen()),
     );
     
     if (resultado != null) {
-      cargarVehiculos(); // Recargar lista
+      cargarVehiculos(); 
     }
   }
   
@@ -72,7 +76,7 @@ class _MisVehiculosScreenState extends State<MisVehiculosScreen> {
     );
     
     if (resultado != null) {
-      cargarVehiculos(); // Recargar lista
+      cargarVehiculos();
     }
   }
   
@@ -80,26 +84,37 @@ class _MisVehiculosScreenState extends State<MisVehiculosScreen> {
     final confirmar = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Eliminar Vehículo'),
-        content: Text('¿Deseas dar de baja el vehículo $placa?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Eliminar Vehículo', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('¿Deseas dar de baja el vehículo $placa? Esta acción no se puede deshacer.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Eliminar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false), 
+            child: const Text('Cancelar', style: TextStyle(color: AppTheme.textSecondary))
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
     
     if (confirmar == true) {
+      setState(() => cargando = true);
       final resultado = await vehiculoService.eliminarVehiculo(idVehiculo);
+      if (!mounted) return;
       
       if (resultado['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Vehículo eliminado'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('✅ Vehículo eliminado'), backgroundColor: AppTheme.success),
         );
         cargarVehiculos();
       } else {
+        setState(() => cargando = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ ${resultado['error']}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('❌ ${resultado['error']}'), backgroundColor: AppTheme.danger),
         );
       }
     }
@@ -108,79 +123,161 @@ class _MisVehiculosScreenState extends State<MisVehiculosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text('Mis Vehículos'),
-        centerTitle: true,
+        title: const Text('Mis Vehículos'),
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppTheme.textPrimary),
             onPressed: cargarVehiculos,
           )
         ],
       ),
       body: cargando
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      SizedBox(height: 16),
-                      Text(error!),
-                      SizedBox(height: 16),
-                      ElevatedButton(onPressed: cargarVehiculos, child: Text('Reintentar')),
-                    ],
-                  ),
-                )
+              ? _buildErrorState()
               : vehiculos.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.directions_car_filled, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text('No tienes vehículos registrados'),
-                          SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: irRegistrar,
-                            child: Text('Registrar Primer Vehículo'),
-                          ),
-                        ],
-                      ),
-                    )
+                  ? _buildEmptyState()
                   : ListView.builder(
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.only(top: 16, bottom: 80, left: 8, right: 8),
                       itemCount: vehiculos.length,
                       itemBuilder: (context, index) {
                         final vehiculo = vehiculos[index];
-                        return Card(
-                          margin: EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            leading: Icon(Icons.directions_car, color: Colors.blue),
-                            title: Text(vehiculo['placa'], style: TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('${vehiculo['marca']} ${vehiculo['modelo']} (${vehiculo['anio']})'),
-                            trailing: PopupMenuButton(
-                              itemBuilder: (context) => [
-                                PopupMenuItem(
-                                  child: Text('Editar'),
-                                  onTap: () => irEditar(vehiculo),
+                        return ModernCard(
+                          onTap: () => irEditar(vehiculo),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryLight,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                PopupMenuItem(
-                                  child: Text('Eliminar', style: TextStyle(color: Colors.red)),
-                                  onTap: () => eliminarVehiculo(vehiculo['id_vehiculo'], vehiculo['placa']),
+                                child: const Icon(Icons.directions_car, color: AppTheme.primary, size: 28),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      vehiculo['placa'], 
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textPrimary)
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${vehiculo['marca'] ?? ''} ${vehiculo['modelo'] ?? ''} ${vehiculo['anio'] != null ? '(${vehiculo['anio']})' : ''}',
+                                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            onTap: () => irEditar(vehiculo),
+                              ),
+                              PopupMenuButton(
+                                icon: const Icon(Icons.more_vert, color: AppTheme.textMuted),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    onTap: () => Future.delayed(const Duration(milliseconds: 10), () => irEditar(vehiculo)),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.edit, size: 20, color: AppTheme.textSecondary),
+                                        SizedBox(width: 8),
+                                        Text('Editar'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    onTap: () => Future.delayed(const Duration(milliseconds: 10), () => eliminarVehiculo(vehiculo['id_vehiculo'], vehiculo['placa'])),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.delete_outline, size: 20, color: AppTheme.danger),
+                                        SizedBox(width: 8),
+                                        Text('Eliminar', style: TextStyle(color: AppTheme.danger)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         );
                       },
                     ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: irRegistrar,
-        child: Icon(Icons.add),
-        tooltip: 'Registrar Nuevo Vehículo',
+        icon: const Icon(Icons.add),
+        label: const Text('Registrar Vehículo', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: const Icon(Icons.directions_car_filled, size: 64, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Sin Vehículos',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'No tienes vehículos registrados en tu cuenta.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 32),
+            PrimaryButton(
+              text: 'Registrar Primer Vehículo',
+              onPressed: irRegistrar,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: AppTheme.danger),
+            const SizedBox(height: 16),
+            Text(error!, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: cargarVehiculos,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primary,
+                side: const BorderSide(color: AppTheme.primary),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

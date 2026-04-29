@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/incidente.dart';
 import '../services/incidente_service.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/custom_widgets.dart';
 
 class NotificacionesScreen extends StatefulWidget {
   const NotificacionesScreen({super.key});
@@ -68,7 +70,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         : int.tryParse(idIncidenteRaw?.toString() ?? '');
     if (idIncidente == null || idIncidente == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Incidente no disponible')),
+        const SnackBar(content: Text('Incidente no disponible'), backgroundColor: AppTheme.warning),
       );
       return;
     }
@@ -80,7 +82,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
       final inc = result['incidente'] as IncidenteDetalle;
       if (inc.evaluado) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ya calificaste este servicio')),
+          const SnackBar(content: Text('Ya calificaste este servicio'), backgroundColor: AppTheme.success),
         );
         return;
       }
@@ -96,7 +98,10 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result['error']?.toString() ?? 'Error al abrir')),
+      SnackBar(
+        content: Text(result['error']?.toString() ?? 'Error al abrir'),
+        backgroundColor: AppTheme.danger,
+      ),
     );
   }
 
@@ -114,39 +119,57 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Notificaciones'),
+        centerTitle: false,
         actions: [
           IconButton(
             onPressed: _cargar,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: AppTheme.textPrimary),
             tooltip: 'Actualizar',
           ),
         ],
       ),
       body: Column(
         children: [
-          SwitchListTile(
-            title: const Text('Solo no leídas'),
-            value: _soloNoLeidas,
-            onChanged: (value) {
-              setState(() => _soloNoLeidas = value);
-              _cargar();
-            },
+          // FILTRO SUPERIOR
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: const BoxDecoration(
+              color: AppTheme.surface,
+              border: Border(bottom: BorderSide(color: AppTheme.border)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Mostrar solo no leídas',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+                Switch(
+                  value: _soloNoLeidas,
+                  activeColor: AppTheme.primary,
+                  onChanged: (value) {
+                    setState(() => _soloNoLeidas = value);
+                    _cargar();
+                  },
+                ),
+              ],
+            ),
           ),
-          const Divider(height: 1),
+          
+          // LISTA DE NOTIFICACIONES
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _items.isEmpty
-                    ? const Center(
-                        child: Text('No hay notificaciones.'),
-                      )
+                    ? _buildEmptyState()
                     : RefreshIndicator(
                         onRefresh: _cargar,
-                        child: ListView.separated(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.only(top: 16, bottom: 40, left: 12, right: 12),
                           itemCount: _items.length,
-                          separatorBuilder: (context, index) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final item = _items[index];
                             final titulo = (item['titulo'] ?? '').toString();
@@ -154,42 +177,126 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                             final leido = item['leido'] == true;
                             final fecha = _fechaBonita(item['created_at']);
 
-                            return ListTile(
-                              leading: Icon(
-                                leido
-                                    ? Icons.notifications_none
-                                    : Icons.notifications_active,
-                                color: leido ? Colors.grey : Colors.red,
-                              ),
-                              title: Text(
-                                titulo,
-                                style: TextStyle(
-                                  fontWeight:
-                                      leido ? FontWeight.w500 : FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '$mensaje\n$fecha',
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              isThreeLine: true,
+                            return ModernCard(
+                              indicatorColor: leido ? Colors.transparent : AppTheme.primary,
                               onTap: () async {
                                 await _marcarLeida(item);
                                 await _abrirCalificacionSiAplica(item);
                               },
-                              trailing: leido
-                                  ? null
-                                  : TextButton(
-                                      onPressed: () => _marcarLeida(item),
-                                      child: const Text('Marcar leída'),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: leido ? AppTheme.background : AppTheme.primaryLight,
+                                      shape: BoxShape.circle,
                                     ),
+                                    child: Icon(
+                                      leido ? Icons.notifications_none : Icons.notifications_active,
+                                      color: leido ? AppTheme.textMuted : AppTheme.primary,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                titulo,
+                                                style: TextStyle(
+                                                  fontWeight: leido ? FontWeight.w600 : FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: leido ? AppTheme.textSecondary : AppTheme.textPrimary,
+                                                ),
+                                              ),
+                                            ),
+                                            if (!leido)
+                                              Container(
+                                                width: 8,
+                                                height: 8,
+                                                margin: const EdgeInsets.only(top: 6, left: 8),
+                                                decoration: const BoxDecoration(
+                                                  color: AppTheme.primary,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          mensaje,
+                                          style: TextStyle(
+                                            color: leido ? AppTheme.textMuted : AppTheme.textSecondary,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.access_time, size: 14, color: AppTheme.textMuted),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              fecha,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: AppTheme.textMuted,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             );
                           },
                         ),
                       ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: const Icon(Icons.notifications_off_outlined, size: 64, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'No hay notificaciones',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _soloNoLeidas 
+                  ? 'Estás al día. No tienes notificaciones nuevas por leer.' 
+                  : 'Aún no has recibido ninguna notificación en tu cuenta.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
       ),
     );
   }

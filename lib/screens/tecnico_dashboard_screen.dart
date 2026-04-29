@@ -5,6 +5,8 @@ import '../models/evidencia.dart';
 import '../services/auth_service.dart';
 import '../services/tecnico_asignaciones_service.dart';
 import '../services/tecnico_auth_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/custom_widgets.dart';
 
 class TecnicoDashboardScreen extends StatefulWidget {
   const TecnicoDashboardScreen({super.key});
@@ -14,8 +16,7 @@ class TecnicoDashboardScreen extends StatefulWidget {
 }
 
 class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
-  final TecnicoAsignacionesService _tecnicoService =
-      TecnicoAsignacionesService();
+  final TecnicoAsignacionesService _tecnicoService = TecnicoAsignacionesService();
   final AuthService _authService = AuthService();
   final TecnicoAuthService _tecnicoAuthService = TecnicoAuthService();
 
@@ -63,35 +64,20 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
         return;
       }
 
-      _log(
-        '_loadAsignacion -> asignacion recibida '
-        'idAsignacion=${asig.idAsignacion}, idIncidente=${asig.idIncidente}, '
-        'estado=${asig.estadoAsignacion}',
-      );
-
       final incidente = asig.incidente;
-      _log(
-        '_loadAsignacion -> incidente embebido '
-        'idIncidente=${incidente.idIncidente}, categoria=${incidente.categoria}, '
-        'prioridad=${incidente.prioridad}',
-      );
-
       setState(() {
         _asignacion = asig;
         _incidente = incidente;
         _isLoading = false;
       });
 
-      // GPS tiempo real: solo activo cuando está en_camino
       if (asig.estadoAsignacion == 'en_camino') {
         _tecnicoService.iniciarSeguimientoUbicacion();
       } else {
         _tecnicoService.detenerSeguimientoUbicacion();
       }
 
-      // Cargar evidencias del incidente
       _cargarEvidencias(asig.idAsignacion);
-
       _log('_loadAsignacion -> FIN OK');
     } catch (e, st) {
       _log('_loadAsignacion -> ERROR: $e');
@@ -105,7 +91,6 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
 
   String _mapError(dynamic error) {
     final text = error.toString();
-    _log('_mapError -> raw=$text');
     if (text.contains('404')) {
       return 'No hay asignacion actual. Espera a que un taller te asigne.';
     }
@@ -124,44 +109,45 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
   Future<void> _cargarEvidencias(int idAsignacion) async {
     setState(() => _loadingEvidencias = true);
     final lista = await _tecnicoService.obtenerEvidencias(idAsignacion);
-    // También incluir las que ya vienen embebidas en el incidente
     final embebidas = _asignacion?.incidente.evidencias ?? [];
     final todas = [...embebidas];
-    for (final e in lista) {
-      if (!todas.any((x) => x.idEvidencia == e.idEvidencia)) {
-        todas.add(e);
+    for (final evidencia in lista) {
+      if (!todas.any((item) => item.idEvidencia == evidencia.idEvidencia)) {
+        todas.add(evidencia);
       }
     }
-    if (mounted) setState(() { _evidencias = todas; _loadingEvidencias = false; });
+    if (mounted) {
+      setState(() {
+        _evidencias = todas;
+        _loadingEvidencias = false;
+      });
+    }
   }
 
   Future<void> _handleIniciarViaje() async {
     if (_asignacion == null) return;
-    _log('_handleIniciarViaje -> INICIO idAsignacion=${_asignacion!.idAsignacion} estado=${_asignacion!.estadoAsignacion}');
-
     try {
       final updated = await _tecnicoService.iniciarViaje(_asignacion!.idAsignacion);
-      _log('_handleIniciarViaje -> OK nuevoEstado=${updated.estadoAsignacion}');
       setState(() => _asignacion = updated);
       _tecnicoService.iniciarSeguimientoUbicacion();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Viaje iniciado. Compartiendo ubicación en tiempo real.')),
+        const SnackBar(
+          content: Text('Viaje iniciado. Compartiendo ubicación en tiempo real.'),
+          backgroundColor: AppTheme.success,
+        ),
       );
-    } catch (e, st) {
-      _log('_handleIniciarViaje -> ERROR: $e');
-      _log('_handleIniciarViaje -> STACK: $st');
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_mapError(e))),
+        SnackBar(content: Text(_mapError(e)), backgroundColor: AppTheme.danger),
       );
     }
   }
 
   Future<void> _handleCompletar() async {
     if (_asignacion == null) return;
-    _log('_handleCompletar -> abrir dialogo idAsignacion=${_asignacion!.idAsignacion} estado=${_asignacion!.estadoAsignacion}');
 
     final resumenController = TextEditingController();
     final costoController = TextEditingController();
@@ -170,37 +156,42 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Completar Servicio'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Completar Servicio',
+            style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Cobro final (opcional)'),
+              const Text(
+                'Cobro final (opcional)',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: costoController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  hintText: 'Ej: 85000',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(hintText: 'Ej: 85000'),
               ),
-              const SizedBox(height: 12),
-              const Text('Resumen del trabajo (opcional)'),
+              const SizedBox(height: 16),
+              const Text(
+                'Resumen del trabajo (opcional)',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textSecondary),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: resumenController,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Describe el trabajo realizado',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(hintText: 'Describe el trabajo realizado'),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: const Text('Cancelar', style: TextStyle(color: AppTheme.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -211,59 +202,420 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
                       ? null
                       : resumenController.text.trim();
 
-                  _log('_handleCompletar -> enviando completar costo=$costo resumenLen=${resumen?.length ?? 0}');
-
                   final updated = await _tecnicoService.completar(
                     _asignacion!.idAsignacion,
                     costoFinal: costo,
                     resumenTrabajo: resumen,
                   );
-                  _log('_handleCompletar -> OK nuevoEstado=${updated.estadoAsignacion}');
                   setState(() => _asignacion = updated);
                   _tecnicoService.detenerSeguimientoUbicacion();
 
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Servicio completado.')),
+                    const SnackBar(
+                      content: Text('Servicio completado.'),
+                      backgroundColor: AppTheme.success,
+                    ),
                   );
-                } catch (e, st) {
-                  _log('_handleCompletar -> ERROR: $e');
-                  _log('_handleCompletar -> STACK: $st');
+                } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(_mapError(e))),
+                    SnackBar(content: Text(_mapError(e)), backgroundColor: AppTheme.danger),
                   );
                 }
               },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
               child: const Text('Confirmar'),
             ),
           ],
         );
       },
     );
+
+    resumenController.dispose();
+    costoController.dispose();
   }
 
   Future<void> _logout() async {
-    _log('_logout -> limpiando sesiones tecnico/general');
     await _tecnicoAuthService.logout();
     await _authService.logout();
-    _log('_logout -> completado, navegando a /login');
     if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/login');
   }
 
-  Color _getColorForEstado(String estado) {
+  Widget _buildActionButtons() {
+    if (_asignacion == null) return const SizedBox.shrink();
+
+    switch (_asignacion!.estadoAsignacion) {
+      case 'pendiente':
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.background,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.access_time_filled, color: AppTheme.textMuted),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Esperando que el taller acepte la asignacion...',
+                  style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        );
+      case 'aceptada':
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _handleIniciarViaje,
+            icon: const Icon(Icons.directions_car),
+            label: const Text('Iniciar Viaje Hacia el Cliente'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        );
+      case 'en_camino':
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _handleCompletar,
+            icon: const Icon(Icons.check_circle),
+            label: const Text('Completar Servicio'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.success,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        );
+      case 'completada':
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.successLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFA7F3D0)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.verified, color: AppTheme.success),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Servicio completado. El cliente puede evaluar tu trabajo.',
+                  style: TextStyle(color: Color(0xFF047857), fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildEvidencias() {
+    if (_loadingEvidencias) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_evidencias.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppTheme.background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: const Column(
+          children: [
+            Icon(Icons.no_photography_outlined, size: 48, color: AppTheme.textMuted),
+            SizedBox(height: 8),
+            Text(
+              'Sin evidencias subidas',
+              style: TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: _evidencias.map(_buildEvidenciaItem).toList(),
+    );
+  }
+
+  Widget _buildEvidenciaItem(Evidencia evidencia) {
+    if (evidencia.esImagen) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            evidencia.urlArchivo,
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              height: 100,
+              color: AppTheme.background,
+              child: const Center(
+                child: Icon(Icons.broken_image, color: AppTheme.textMuted),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: evidencia.esAudio ? AppTheme.warningLight : AppTheme.primaryLight,
+          child: Icon(
+            evidencia.esAudio ? Icons.mic : Icons.description,
+            color: evidencia.esAudio ? AppTheme.warning : AppTheme.primary,
+          ),
+        ),
+        title: Text(
+          evidencia.esAudio ? 'Audio del cliente' : 'Descripción adicional',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Text(
+          (evidencia.esAudio ? evidencia.transcripcionAudio : evidencia.descripcionIa) ?? 'Cargando...',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGpsIndicator() {
+    if (_asignacion?.estadoAsignacion != 'en_camino') return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFC7D2FE)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.location_on, color: AppTheme.primary, size: 20),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Compartiendo ubicación en tiempo real con el cliente',
+              style: TextStyle(color: Color(0xFF4338CA), fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    final estado = _asignacion?.estadoAsignacion ?? 'desconocido';
+    final nombreCliente = _incidente?.usuario?['nombre'] ?? _asignacion!.incidente.usuario?['nombre'] ?? 'Cliente';
+    final telefonoCliente = _incidente?.usuario?['telefono'] ?? _asignacion!.incidente.usuario?['telefono'];
+    final placa = _incidente?.vehiculo?['placa'] ?? _asignacion!.incidente.vehiculo?['placa'] ?? 'N/A';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppTheme.primary, Color(0xFF6366F1)],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'ASIGNACIÓN #${_asignacion!.idAsignacion}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+              StatusBadge(
+                text: estado.replaceAll('_', ' '),
+                status: estado,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Atención a Cliente',
+            style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          Text(
+            nombreCliente,
+            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Vehículo: $placa',
+            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+          if (telefonoCliente != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.phone, color: Colors.white70, size: 14),
+                const SizedBox(width: 6),
+                Text(telefonoCliente, style: const TextStyle(color: Colors.white)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetalleServicio() {
+    final vehiculo = '${_incidente?.vehiculo?['marca'] ?? _asignacion!.incidente.vehiculo?['marca'] ?? ''} ${_incidente?.vehiculo?['modelo'] ?? _asignacion!.incidente.vehiculo?['modelo'] ?? ''}'.trim();
+    final colorVehiculo = _incidente?.vehiculo?['color'] ?? _asignacion!.incidente.vehiculo?['color'];
+
+    return ModernCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InfoField(
+            icon: Icons.directions_car,
+            label: 'Vehículo',
+            value: '$vehiculo (${_incidente?.vehiculo?['placa'] ?? _asignacion!.incidente.vehiculo?['placa'] ?? 'N/A'})',
+          ),
+          if (colorVehiculo != null) ...[
+            const Divider(color: AppTheme.border, height: 24),
+            InfoField(
+              icon: Icons.palette_outlined,
+              label: 'Color',
+              value: colorVehiculo.toString(),
+            ),
+          ],
+          const Divider(color: AppTheme.border, height: 24),
+          InfoField(
+            icon: Icons.warning_amber_rounded,
+            label: 'Problema Reportado',
+            value: _incidente?.descripcionUsuario ?? _asignacion!.incidente.descripcionUsuario,
+          ),
+          if ((_incidente?.resumenIa ?? _asignacion!.incidente.resumenIa) != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryLight,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: AppTheme.primary, size: 14),
+                      SizedBox(width: 6),
+                      Text(
+                        'ANÁLISIS DE IA',
+                        style: TextStyle(color: AppTheme.primary, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    (_incidente?.resumenIa ?? _asignacion!.incidente.resumenIa)!,
+                    style: const TextStyle(color: Color(0xFF312E81), fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (_asignacion?.etaMinutos != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.schedule, size: 16, color: AppTheme.textSecondary),
+                const SizedBox(width: 8),
+                Text(
+                  'ETA: ${_asignacion!.etaMinutos} minutos',
+                  style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEstadoCard() {
+    final estado = _asignacion!.estadoAsignacion;
+    return ModernCard(
+      indicatorColor: _getIndicatorColor(estado),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Estado', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Text(
+                estado.replaceAll('_', ' ').toUpperCase(),
+                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          Icon(_getIconForEstado(estado), size: 42, color: _getIndicatorColor(estado)),
+        ],
+      ),
+    );
+  }
+
+  Color _getIndicatorColor(String estado) {
     switch (estado) {
       case 'pendiente':
-        return Colors.grey;
+        return AppTheme.warning;
       case 'aceptada':
-        return Colors.green;
+        return AppTheme.success;
       case 'en_camino':
-        return Colors.blue;
+        return AppTheme.primary;
       case 'completada':
-        return Colors.teal;
+        return const Color(0xFF0F766E);
       default:
-        return Colors.grey;
+        return AppTheme.textMuted;
     }
   }
 
@@ -282,197 +634,42 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
     }
   }
 
-  Widget _buildActionButtons() {
-    if (_asignacion == null) return const SizedBox.shrink();
-
-    switch (_asignacion!.estadoAsignacion) {
-      case 'pendiente':
-        return Card(
-          color: Colors.grey[200],
-          child: const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text(
-              'Esperando que el taller acepte la asignacion...',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        );
-
-      case 'aceptada':
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _handleIniciarViaje,
-            icon: const Icon(Icons.directions_car),
-            label: const Text('Iniciar Viaje'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        );
-
-      case 'en_camino':
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _handleCompletar,
-            icon: const Icon(Icons.check_circle),
-            label: const Text('Completar Servicio'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        );
-
-      case 'completada':
-        return Card(
-          color: Colors.green[50],
-          child: const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text(
-              'Servicio completado. El cliente puede evaluar tu trabajo.',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        );
-
-      default:
-        return Text('Estado desconocido: ${_asignacion!.estadoAsignacion}');
-    }
-  }
-
-  Widget _buildEvidencias() {
-    if (_loadingEvidencias) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-
-    if (_evidencias.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 4),
-        child: Text(
-          'El cliente no subió evidencias.',
-          style: TextStyle(color: Colors.grey),
-        ),
-      );
-    }
-
-    return Column(
-      children: _evidencias.map((e) => _buildEvidenciaItem(e)).toList(),
-    );
-  }
-
-  Widget _buildEvidenciaItem(Evidencia ev) {
-    if (ev.esImagen) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            ev.urlArchivo,
-            height: 180,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              height: 80,
-              color: Colors.grey[200],
-              child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (ev.esAudio) {
-      return ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: const CircleAvatar(
-          backgroundColor: Colors.orange,
-          child: Icon(Icons.mic, color: Colors.white),
-        ),
-        title: const Text('Audio del cliente'),
-        subtitle: ev.transcripcionAudio != null
-            ? Text(ev.transcripcionAudio!, maxLines: 2, overflow: TextOverflow.ellipsis)
-            : null,
-      );
-    }
-
-    // Texto / descripción IA
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const CircleAvatar(
-        backgroundColor: Colors.blue,
-        child: Icon(Icons.description, color: Colors.white),
-      ),
-      title: const Text('Descripción adicional'),
-      subtitle: ev.descripcionIa != null ? Text(ev.descripcionIa!) : null,
-    );
-  }
-
-  Widget _buildGpsIndicator() {
-    if (_asignacion?.estadoAsignacion != 'en_camino') return const SizedBox.shrink();
-    return Card(
-      color: Colors.blue[50],
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Icon(Icons.location_on, color: Colors.blue, size: 18),
-            SizedBox(width: 8),
-            Text(
-              'Compartiendo ubicación en tiempo real',
-              style: TextStyle(color: Colors.blue, fontSize: 13),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    _log(
-      'build -> isLoading=$_isLoading, error=${_errorMessage != null}, '
-      'hasAsignacion=${_asignacion != null}, '
-      'estado=${_asignacion?.estadoAsignacion ?? 'null'}',
-    );
-
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Mi Asignacion')),
+        appBar: AppBar(title: const Text('Mi Tarea Activa')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_errorMessage != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Mi Asignacion')),
+        appBar: AppBar(title: const Text('Mi Tarea Activa')),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(_errorMessage!, textAlign: TextAlign.center),
+                const Icon(Icons.error_outline, size: 64, color: AppTheme.danger),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton(
-                      onPressed: _loadAsignacion,
-                      child: const Text('Reintentar'),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton.icon(
-                      onPressed: _logout,
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Cerrar sesion'),
-                    ),
-                  ],
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                PrimaryButton(text: 'Reintentar', onPressed: _loadAsignacion),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Cerrar sesión'),
                 ),
               ],
             ),
@@ -484,31 +681,54 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
     if (_asignacion == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Mi Asignacion'),
+          title: const Text('Mi Tarea Activa'),
           actions: [
             IconButton(
-              icon: const Icon(Icons.notifications),
+              icon: const Icon(Icons.notifications_none),
               onPressed: () => Navigator.pushNamed(context, '/notificaciones'),
-              tooltip: 'Notificaciones',
             ),
             IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAsignacion),
             IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
           ],
         ),
-        body: const Center(
-          child: Text('No hay asignacion pendiente en este momento.'),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.inbox_outlined, size: 80, color: AppTheme.border),
+                const SizedBox(height: 16),
+                const Text(
+                  'Sin Asignaciones',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'No tienes ninguna tarea pendiente.\nEspera a que tu taller te asigne una.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: _loadAsignacion,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Actualizar Ahora'),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mi Asignacion Actual'),
+        title: const Text('Panel Técnico'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications),
+            icon: const Icon(Icons.notifications_none),
             onPressed: () => Navigator.pushNamed(context, '/notificaciones'),
-            tooltip: 'Notificaciones',
           ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAsignacion),
           IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
@@ -518,115 +738,29 @@ class _TecnicoDashboardScreenState extends State<TecnicoDashboardScreen> {
         onRefresh: _loadAsignacion,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Card(
-                color: _getColorForEstado(_asignacion!.estadoAsignacion),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Estado', style: TextStyle(color: Colors.white70)),
-                          Text(
-                            _asignacion!.estadoAsignacion.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Icon(
-                        _getIconForEstado(_asignacion!.estadoAsignacion),
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                    ],
-                  ),
+              _buildHeader(),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildEstadoCard(),
+                    const SizedBox(height: 16),
+                    _buildActionButtons(),
+                    _buildGpsIndicator(),
+                    const SizedBox(height: 24),
+                    const SectionHeader(title: 'Detalles del Servicio'),
+                    _buildDetalleServicio(),
+                    const SizedBox(height: 16),
+                    const SectionHeader(title: 'Evidencias Adjuntas'),
+                    ModernCard(child: _buildEvidencias()),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              if (_asignacion!.etaMinutos != null)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text('ETA: ${_asignacion!.etaMinutos} minutos'),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              Text('Detalle del Incidente', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('👤 Cliente', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                      Text(
-                        _incidente?.usuario?['nombre'] ?? _asignacion!.incidente.usuario?['nombre'] ?? 'Nombre no disponible',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      if ((_incidente?.usuario?['telefono'] ?? _asignacion!.incidente.usuario?['telefono']) != null)
-                        Text('Tel: ${_incidente?.usuario?['telefono'] ?? _asignacion!.incidente.usuario?['telefono']}'),
-                      
-                      const Divider(),
-                      
-                      const Text('🚗 Vehículo', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                      Row(
-                        children: [
-                          Text(
-                            _incidente?.vehiculo?['placa'] ?? _asignacion!.incidente.vehiculo?['placa'] ?? 'Placa N/A',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '${_incidente?.vehiculo?['marca'] ?? _asignacion!.incidente.vehiculo?['marca'] ?? ''} ${_incidente?.vehiculo?['modelo'] ?? _asignacion!.incidente.vehiculo?['modelo'] ?? ''}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if ((_incidente?.vehiculo?['color'] ?? _asignacion!.incidente.vehiculo?['color']) != null)
-                        Text('Color: ${_incidente?.vehiculo?['color'] ?? _asignacion!.incidente.vehiculo?['color']}'),
-                        
-                      const Divider(),
-                      const Text('⚠️ Problema', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                      Text('Categoria: ${_incidente?.categoria ?? _asignacion!.incidente.categoria}'),
-                      Text('Prioridad: ${_incidente?.prioridad ?? _asignacion!.incidente.prioridad}'),
-                      const SizedBox(height: 4),
-                      const Text('Descripcion:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(_incidente?.descripcionUsuario ?? _asignacion!.incidente.descripcionUsuario),
-                      if ((_incidente?.resumenIa ?? _asignacion!.incidente.resumenIa) != null) ...[
-                        const SizedBox(height: 8),
-                        const Text('Analisis IA:', style: TextStyle(fontWeight: FontWeight.bold)),
-                        Text((_incidente?.resumenIa ?? _asignacion!.incidente.resumenIa)!),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildGpsIndicator(),
-              const SizedBox(height: 16),
-              Text('Evidencias del Cliente', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: _buildEvidencias(),
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildActionButtons(),
             ],
           ),
         ),

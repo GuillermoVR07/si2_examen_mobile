@@ -4,6 +4,8 @@ import '../models/asignacion_response.dart';
 import '../models/completar_servicio_form.dart';
 import '../services/tecnico_asignaciones_service.dart';
 import '../widgets/completar_servicio_dialog.dart';
+import '../theme/app_theme.dart';
+import '../theme/custom_widgets.dart';
 
 class AsignacionDetalleScreen extends StatefulWidget {
   final int idAsignacion;
@@ -49,7 +51,7 @@ class _AsignacionDetalleScreenState extends State<AsignacionDetalleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Servicio completado correctamente'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.success,
         ),
       );
     } catch (e) {
@@ -57,7 +59,7 @@ class _AsignacionDetalleScreenState extends State<AsignacionDetalleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al completar servicio: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.danger,
         ),
       );
     }
@@ -77,8 +79,8 @@ class _AsignacionDetalleScreenState extends State<AsignacionDetalleScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Viaje iniciado. Estado: ${resultado.estadoAsignacion}'),
-          backgroundColor: Colors.green,
+          content: Text('Viaje iniciado. Estado: ${resultado.estadoAsignacion.replaceAll('_', ' ')}'),
+          backgroundColor: AppTheme.success,
         ),
       );
     } catch (e) {
@@ -86,7 +88,7 @@ class _AsignacionDetalleScreenState extends State<AsignacionDetalleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.danger,
         ),
       );
     } finally {
@@ -102,139 +104,150 @@ class _AsignacionDetalleScreenState extends State<AsignacionDetalleScreen> {
     final estadoAsignacion = _asignacion?.estadoAsignacion ?? 'aceptada';
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Detalle de Asignacion'),
+        title: const Text('Detalle de Asignación'),
+        centerTitle: false,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Incidente',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('ID Asignacion: ${widget.idAsignacion}'),
-                    Text('Categoria: ${incidente?.categoria ?? 'Pendiente de cargar'}'),
-                    Text('Prioridad: ${incidente?.prioridad ?? 'No disponible'}'),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Descripcion: ${incidente?.descripcionUsuario ?? 'N/A'}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
+            // HEADER INFORMATIVO
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: AppTheme.surface,
+                border: Border(bottom: BorderSide(color: AppTheme.border)),
               ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Estado de la Asignacion',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: estadoAsignacion == 'aceptada'
-                            ? Colors.orange.shade100
-                            : Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        estadoAsignacion,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            if (estadoAsignacion == 'aceptada')
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _iniciandoViaje ? null : _iniciarViajeAhora,
-                  icon: _iniciandoViaje
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.navigation),
-                  label: const Text('Iniciar Viaje'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            if (estadoAsignacion == 'en_camino')
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _abrirDialogoCompletar,
-                  icon: const Icon(Icons.check_circle),
-                  label: const Text('Completar Servicio'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            if (estadoAsignacion == 'completada')
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    border: Border.all(color: Colors.green),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Servicio Completado',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Colors.green.shade800,
-                        ),
+                      const Text(
+                        'Asignación ID',
+                        style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 8),
                       Text(
-                        'El cliente ya puede evaluar el servicio',
-                        style: TextStyle(color: Colors.green.shade700),
+                        '#${widget.idAsignacion}',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
                       ),
                     ],
                   ),
-                ),
+                  StatusBadge(
+                    text: estadoAsignacion.replaceAll('_', ' '),
+                    status: estadoAsignacion,
+                  ),
+                ],
               ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SectionHeader(title: 'Detalles del Incidente'),
+                  ModernCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        InfoField(
+                          icon: Icons.build,
+                          label: 'Categoría',
+                          value: incidente?.categoria ?? 'Pendiente de cargar',
+                        ),
+                        const Divider(color: AppTheme.border, height: 24),
+                        InfoField(
+                          icon: Icons.priority_high,
+                          label: 'Prioridad',
+                          value: incidente?.prioridad ?? 'No disponible',
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Descripción del problema',
+                          style: TextStyle(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryLight,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                          ),
+                          child: Text(
+                            incidente?.descripcionUsuario ?? 'Descripción no disponible',
+                            style: const TextStyle(color: Color(0xFF312E81), fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  const SectionHeader(title: 'Gestión del Servicio'),
+                  
+                  // BOTONES DE ACCIÓN SEGÚN EL ESTADO
+                  if (estadoAsignacion == 'aceptada')
+                    PrimaryButton(
+                      text: 'Iniciar Viaje',
+                      onPressed: _iniciarViajeAhora,
+                      isLoading: _iniciandoViaje,
+                    ),
+
+                  if (estadoAsignacion == 'en_camino')
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _abrirDialogoCompletar,
+                        icon: const Icon(Icons.check_circle),
+                        label: const Text('Completar Servicio'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.success, // Botón verde
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+
+                  if (estadoAsignacion == 'completada')
+                    ModernCard(
+                      indicatorColor: AppTheme.success,
+                      child: const Row(
+                        children: [
+                          Icon(Icons.verified, color: AppTheme.success, size: 32),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Servicio Completado',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.success),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'El cliente ya puede evaluar el servicio desde su historial.',
+                                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../models/pago_cliente_item.dart';
 import '../services/pagos_service.dart';
 import '../utils/app_logger.dart';
+import '../theme/app_theme.dart';
+import '../theme/custom_widgets.dart';
 
 class MisPagosScreen extends StatefulWidget {
   const MisPagosScreen({super.key});
@@ -79,6 +81,7 @@ class _MisPagosScreenState extends State<MisPagosScreen>
         'Iniciando pago. Incidente: ${item.idIncidente}, Monto: ${item.montoTotal}',
         tag: _tag,
       );
+      
       // 1. Crear PaymentIntent en el backend
       final intentResult = await _pagosService.crearPaymentIntent(
         idIncidente: item.idIncidente,
@@ -107,7 +110,7 @@ class _MisPagosScreenState extends State<MisPagosScreen>
           style: ThemeMode.system,
           appearance: const PaymentSheetAppearance(
             colors: PaymentSheetAppearanceColors(
-              primary: Color(0xFFD32F2F),
+              primary: AppTheme.primary, // Utilizamos el índigo principal de la app
             ),
           ),
         ),
@@ -132,7 +135,7 @@ class _MisPagosScreenState extends State<MisPagosScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('¡Pago completado exitosamente!'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.success,
         ),
       );
 
@@ -164,20 +167,27 @@ class _MisPagosScreenState extends State<MisPagosScreen>
   OverlayEntry _showLoading(String mensaje) {
     final entry = OverlayEntry(
       builder: (_) => Material(
-        color: Colors.black54,
+        color: Colors.black.withOpacity(0.4),
         child: Center(
-          child: Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 12),
-                  Text(mensaje),
-                ],
-              ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, 10))
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: AppTheme.primary),
+                const SizedBox(height: 16),
+                Text(
+                  mensaje,
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+              ],
             ),
           ),
         ),
@@ -191,7 +201,7 @@ class _MisPagosScreenState extends State<MisPagosScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(mensaje),
-        backgroundColor: Colors.red,
+        backgroundColor: AppTheme.danger,
       ),
     );
   }
@@ -199,15 +209,15 @@ class _MisPagosScreenState extends State<MisPagosScreen>
   Color _estadoColor(String estado) {
     switch (estado.toLowerCase()) {
       case 'completado':
-        return Colors.green;
+        return AppTheme.success;
       case 'procesando':
-        return Colors.blue;
+        return AppTheme.primary;
       case 'fallido':
-        return Colors.red;
+        return AppTheme.danger;
       case 'reembolsado':
-        return Colors.purple;
+        return const Color(0xFF9333EA); // purple-600
       default:
-        return Colors.orange;
+        return AppTheme.warning;
     }
   }
 
@@ -234,18 +244,38 @@ class _MisPagosScreenState extends State<MisPagosScreen>
 
   String _fecha(DateTime? dt) {
     if (dt == null) return 'Sin fecha';
-    return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+    return DateFormat('dd/MM/yyyy HH:mm').format(dt.toLocal());
   }
 
   Widget _buildEmpty(String mensaje, IconData icono) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icono, size: 64, color: Colors.grey),
-          const SizedBox(height: 12),
-          Text(mensaje, style: const TextStyle(color: Colors.grey)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Icon(icono, size: 64, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'No hay registros',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -254,8 +284,8 @@ class _MisPagosScreenState extends State<MisPagosScreen>
     if (items.isEmpty) {
       return _buildEmpty(
         showPagarBtn
-            ? 'No tienes pagos pendientes en este momento'
-            : 'No tienes pagos completados todavía',
+            ? 'No tienes pagos pendientes en este momento.'
+            : 'No tienes pagos completados todavía.',
         showPagarBtn ? Icons.payments_outlined : Icons.receipt_long_outlined,
       );
     }
@@ -263,98 +293,86 @@ class _MisPagosScreenState extends State<MisPagosScreen>
     return RefreshIndicator(
       onRefresh: _cargarPagos,
       child: ListView.separated(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.only(top: 16, bottom: 40, left: 8, right: 8),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, __) => const SizedBox(height: 4),
         itemBuilder: (context, index) {
           final item = items[index];
           final color = _estadoColor(item.estado);
 
-          return Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: color.withOpacity(0.25)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(_estadoIcon(item.estado), color: color),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Incidente #${item.idIncidente}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          item.estadoLabel,
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _monto(item.montoTotal),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text('Fecha: ${_fecha(item.createdAt)}',
-                      style: const TextStyle(fontSize: 13, color: Colors.grey)),
-                  if (item.referenciaExterna != null &&
-                      item.referenciaExterna!.isNotEmpty)
+          return ModernCard(
+            indicatorColor: color,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
                     Text(
-                      'Referencia: ${item.referenciaExterna}',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                      ),
+                      'Incidente #${item.idIncidente}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textMuted),
                     ),
-                  if (showPagarBtn) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _iniciarPago(item),
-                        icon: const Icon(Icons.credit_card),
-                        label: Text('Pagar ${_monto(item.montoTotal)}'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade700,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: color.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(_estadoIcon(item.estado), color: color, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            item.estadoLabel.toUpperCase(),
+                            style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1.2),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _monto(item.montoTotal),
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 14, color: AppTheme.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      _fecha(item.createdAt),
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
+                if (item.referenciaExterna != null && item.referenciaExterna!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.receipt, size: 14, color: AppTheme.textSecondary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Ref: ${item.referenciaExterna}',
+                        style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                      ),
+                    ],
+                  ),
                 ],
-              ),
+                if (showPagarBtn) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: PrimaryButton(
+                      text: 'Pagar ahora',
+                      icon: Icons.credit_card,
+                      onPressed: () => _iniciarPago(item),
+                    ),
+                  ),
+                ],
+              ],
             ),
           );
         },
@@ -365,10 +383,16 @@ class _MisPagosScreenState extends State<MisPagosScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Mis Pagos'),
+        centerTitle: false,
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: AppTheme.primary,
+          labelColor: AppTheme.primary,
+          unselectedLabelColor: AppTheme.textSecondary,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           tabs: [
             Tab(text: 'Pendientes (${_pendientes.length})'),
             Tab(text: 'Completados (${_completados.length})'),
@@ -384,14 +408,23 @@ class _MisPagosScreenState extends State<MisPagosScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 64),
-                        const SizedBox(height: 12),
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 18),
-                        ElevatedButton.icon(
+                        const Icon(Icons.error_outline, color: AppTheme.danger, size: 64),
+                        const SizedBox(height: 16),
+                        Text(
+                          _error!, 
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 24),
+                        OutlinedButton.icon(
                           onPressed: _cargarPagos,
                           icon: const Icon(Icons.refresh),
                           label: const Text('Reintentar'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            side: const BorderSide(color: AppTheme.border),
+                          ),
                         ),
                       ],
                     ),
