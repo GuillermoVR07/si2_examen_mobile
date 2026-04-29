@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../config/api_config.dart';
 import '../utils/app_logger.dart';
+import 'notification_service.dart';
 
 class AuthService {
   static const String baseUrl = ApiConfig.baseUrl;
@@ -150,9 +151,12 @@ class AuthService {
           AppLogger.info('Guardando datos del usuario...', tag: _tag);
           
           await _saveUserData(data);
-          
+
           AppLogger.success('Datos del usuario guardados correctamente', tag: _tag);
-          
+
+          // Registrar token FCM para que las notificaciones lleguen al usuario actual
+          NotificationService().syncTokenWithBackend();
+
           return {
             'success': true,
             'data': data,

@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/conductor_home.dart';
 import 'screens/tecnico_dashboard_screen.dart';
@@ -15,6 +16,7 @@ import 'screens/mis_pagos_screen.dart';
 import 'screens/asignacion_detalle_screen.dart';
 import 'screens/mensajes_screen.dart';
 import 'screens/notificaciones_screen.dart';
+import 'screens/calificar_servicio_screen.dart';
 import 'config/stripe_config.dart';
 import 'services/auth_service.dart';
 import 'services/tecnico_auth_service.dart';
@@ -58,10 +60,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: NotificationService.navigatorKey,
       title: 'Emergencias Vehiculares',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       home: const _InitialScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
@@ -78,6 +77,15 @@ class MyApp extends StatelessWidget {
             const HistorialEmergenciasScreen(),
         '/mis-pagos': (context) => const MisPagosScreen(),
         '/notificaciones': (context) => const NotificacionesScreen(),
+        '/calificar-servicio': (context) {
+          final id = ModalRoute.of(context)?.settings.arguments as int?;
+          if (id == null || id == 0) {
+            return const Scaffold(
+              body: Center(child: Text('Incidente no disponible')),
+            );
+          }
+          return CalificarServicioScreen(idIncidente: id);
+        },
         '/asignacion-detalle': (context) {
           final id = ModalRoute.of(context)?.settings.arguments as int? ?? 0;
           return AsignacionDetalleScreen(idAsignacion: id);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -92,6 +93,18 @@ class _TecnicoTrackingScreenState extends State<TecnicoTrackingScreen> {
         ? LatLng(_tecnicoLat!, _tecnicoLng!)
         : null;
 
+    final distanciaKm = tecnico != null
+        ? _calcularDistanciaKm(
+            cliente.latitude,
+            cliente.longitude,
+            tecnico.latitude,
+            tecnico.longitude,
+          )
+        : null;
+    final etaMinutos = distanciaKm != null
+        ? _estimarMinutosDesdeKm(distanciaKm)
+        : null;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Seguimiento #${widget.idIncidente}'),
@@ -142,6 +155,13 @@ class _TecnicoTrackingScreenState extends State<TecnicoTrackingScreen> {
                           const SizedBox(height: 4),
                           Text('Técnico: $_nombreTecnico'),
                           Text('Estado: $_estadoAsignacion'),
+                          if (distanciaKm != null && etaMinutos != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              'Distancia aprox: ${distanciaKm.toStringAsFixed(1)} km',
+                            ),
+                            Text('Tiempo aprox: $etaMinutos min'),
+                          ],
                         ],
                       ),
                     ),
@@ -225,4 +245,31 @@ class _TecnicoTrackingScreenState extends State<TecnicoTrackingScreen> {
       ),
     );
   }
+
+  double _calcularDistanciaKm(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const double radioTierraKm = 6371.0;
+    final dLat = _gradosARadianes(lat2 - lat1);
+    final dLon = _gradosARadianes(lon2 - lon1);
+    final a =
+      (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+      math.cos(_gradosARadianes(lat1)) *
+        math.cos(_gradosARadianes(lat2)) *
+        (math.sin(dLon / 2) * math.sin(dLon / 2));
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return radioTierraKm * c;
+  }
+
+  int _estimarMinutosDesdeKm(double distanciaKm) {
+    const double velocidadPromedioKmh = 25.0;
+    final horas = distanciaKm / velocidadPromedioKmh;
+    final minutos = (horas * 60).round();
+    return minutos < 1 ? 1 : minutos;
+  }
+
+  double _gradosARadianes(double grados) => grados * (3.141592653589793 / 180.0);
 }

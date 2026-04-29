@@ -248,6 +248,54 @@ class _HistorialEmergenciasScreenState
             }
           }
 
+          Future<void> cancelar() async {
+            final confirmar = await showDialog<bool>(
+              context: ctx,
+              builder: (_) => AlertDialog(
+                title: const Text('¿Cancelar incidente?'),
+                content: const Text(
+                  'Esta acción no se puede deshacer. ¿Seguro que quieres cancelar esta solicitud?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('No'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: const Text('Sí, cancelar', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
+            );
+            if (confirmar != true) return;
+
+            final resultado = await incidenteService.cancelarIncidente(inc.idIncidente);
+            if (!mounted) return;
+
+            if (resultado['success'] == true) {
+              Navigator.pop(ctx);
+              _cargarIncidencias();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Incidente cancelado'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                SnackBar(
+                  content: Text(resultado['error'] ?? 'Error al cancelar'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              if (resultado['code'] == 'AUTH_EXPIRED') {
+                Navigator.of(ctx).pushReplacementNamed('/login');
+              }
+            }
+          }
+
           return AlertDialog(
             title: Text('#${inc.idIncidente} - Detalles'),
             content: SingleChildScrollView(
@@ -376,6 +424,32 @@ class _HistorialEmergenciasScreenState
               ),
             ),
             actions: [
+              if (inc.idEstado == 1 || inc.idEstado == 2)
+                TextButton(
+                  onPressed: cancelar,
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Cancelar solicitud'),
+                ),
+              if (inc.idEstado == 3 && !inc.evaluado)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final updated = await Navigator.pushNamed(
+                      context,
+                      '/calificar-servicio',
+                      arguments: inc.idIncidente,
+                    );
+                    if (updated == true) {
+                      _cargarIncidencias();
+                    }
+                  },
+                  icon: const Icon(Icons.star, size: 18),
+                  label: const Text('Calificar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Cerrar'),

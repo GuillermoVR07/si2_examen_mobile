@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:intl/intl.dart';
 
 import '../models/pago_cliente_item.dart';
 import '../services/pagos_service.dart';
+import '../utils/app_logger.dart';
 
 class MisPagosScreen extends StatefulWidget {
   const MisPagosScreen({super.key});
@@ -15,6 +16,7 @@ class MisPagosScreen extends StatefulWidget {
 class _MisPagosScreenState extends State<MisPagosScreen>
     with SingleTickerProviderStateMixin {
   final PagosService _pagosService = PagosService();
+  static const String _tag = 'MIS_PAGOS';
 
   late TabController _tabController;
   bool _cargando = true;
@@ -41,6 +43,7 @@ class _MisPagosScreenState extends State<MisPagosScreen>
       _error = null;
     });
 
+    AppLogger.info('Cargando pagos del usuario', tag: _tag);
     final resultado = await _pagosService.listarMisPagos();
 
     if (!mounted) return;
@@ -50,10 +53,15 @@ class _MisPagosScreenState extends State<MisPagosScreen>
         _pendientes = List<PagoClienteItem>.from(resultado['pendientes'] ?? []);
         _completados = List<PagoClienteItem>.from(resultado['completados'] ?? []);
       });
+      AppLogger.success(
+        'Pagos cargados. Pendientes: ${_pendientes.length}, Completados: ${_completados.length}',
+        tag: _tag,
+      );
     } else {
       setState(() {
         _error = (resultado['error'] ?? 'No se pudieron cargar los pagos').toString();
       });
+      AppLogger.warning('Error al cargar pagos: $_error', tag: _tag);
 
       if (resultado['code'] == 'AUTH_EXPIRED') {
         Navigator.of(context).pushReplacementNamed('/login');
@@ -67,6 +75,10 @@ class _MisPagosScreenState extends State<MisPagosScreen>
     final loadingOverlay = _showLoading('Preparando pago...');
 
     try {
+      AppLogger.info(
+        'Iniciando pago. Incidente: ${item.idIncidente}, Monto: ${item.montoTotal}',
+        tag: _tag,
+      );
       // 1. Crear PaymentIntent en el backend
       final intentResult = await _pagosService.crearPaymentIntent(
         idIncidente: item.idIncidente,
@@ -77,14 +89,17 @@ class _MisPagosScreenState extends State<MisPagosScreen>
 
       if (intentResult['success'] != true) {
         loadingOverlay.remove();
+        AppLogger.warning('Fallo al crear PaymentIntent: ${intentResult['error']}', tag: _tag);
         _mostrarError(intentResult['error']?.toString() ?? 'Error al crear pago');
         return;
       }
 
       final clientSecret = intentResult['client_secret'] as String;
       final paymentIntentId = intentResult['payment_intent_id'] as String;
+      AppLogger.info('PaymentIntent creado: $paymentIntentId', tag: _tag);
 
       // 2. Inicializar PaymentSheet de Stripe
+      AppLogger.debug('Inicializando PaymentSheet', tag: _tag);
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
@@ -101,13 +116,17 @@ class _MisPagosScreenState extends State<MisPagosScreen>
       loadingOverlay.remove();
 
       // 3. Presentar PaymentSheet
+      AppLogger.debug('Presentando PaymentSheet', tag: _tag);
       await Stripe.instance.presentPaymentSheet();
+      AppLogger.success('PaymentSheet completado', tag: _tag);
 
       // 4. Si llegamos aquí, el pago fue exitoso — confirmar en backend
       if (!mounted) return;
+      AppLogger.info('Confirmando pago en backend', tag: _tag);
       final confirmLoading = _showLoading('Confirmando pago...');
-      await _pagosService.confirmarPagoApp(paymentIntentId);
+      final confirmResult = await _pagosService.confirmarPagoApp(paymentIntentId);
       confirmLoading.remove();
+      AppLogger.info('Respuesta confirmacion: ${confirmResult['success']} / ${confirmResult['estado'] ?? confirmResult['error']}', tag: _tag);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,12 +142,21 @@ class _MisPagosScreenState extends State<MisPagosScreen>
       if (!mounted) return;
 
       // El usuario canceló — no mostrar error
-      if (e.error.code == FailureCode.Canceled) return;
+      if (e.error.code == FailureCode.Canceled) {
+        AppLogger.info('Pago cancelado por el usuario', tag: _tag);
+        return;
+      }
 
+      AppLogger.error(
+        'StripeException al procesar pago',
+        tag: _tag,
+        error: e,
+      );
       _mostrarError('Error al procesar el pago: ${e.error.localizedMessage ?? e.error.message}');
     } catch (e) {
       loadingOverlay.remove();
       if (!mounted) return;
+      AppLogger.error('Excepcion inesperada en pago', tag: _tag, error: e);
       _mostrarError('Error inesperado: $e');
     }
   }

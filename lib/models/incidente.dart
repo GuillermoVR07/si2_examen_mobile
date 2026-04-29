@@ -74,6 +74,7 @@ class IncidenteDetalle {
   final String? resumenIa;
   final double? clasificacionIaConfianza;
   final bool requiereRevisionManual;
+  final bool evaluado;
   final DateTime createdAt;
   final DateTime updatedAt;
   final Map<String, dynamic>? vehiculo;
@@ -96,6 +97,7 @@ class IncidenteDetalle {
     this.resumenIa,
     this.clasificacionIaConfianza,
     this.requiereRevisionManual = false,
+    this.evaluado = false,
     required this.createdAt,
     required this.updatedAt,
     this.vehiculo,
@@ -121,6 +123,7 @@ class IncidenteDetalle {
       clasificacionIaConfianza:
           (json['clasificacion_ia_confianza'] as num?)?.toDouble(),
       requiereRevisionManual: json['requiere_revision_manual'] ?? false,
+      evaluado: json['evaluado'] ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(
         (json['updated_at'] ?? json['created_at']) as String,

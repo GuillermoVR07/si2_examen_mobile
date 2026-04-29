@@ -5,9 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
 import '../models/pago_cliente_item.dart';
+import '../utils/app_logger.dart';
 
 class PagosService {
   static const String baseUrl = ApiConfig.baseUrl;
+  static const String _tag = 'PAGOS_SERVICE';
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -18,12 +20,24 @@ class PagosService {
     try {
       final token = await _getToken();
       if (token == null) {
+        AppLogger.warning('Token no encontrado al listar pagos', tag: _tag);
         return {'success': false, 'error': 'No autenticado'};
       }
 
+      final url = '$baseUrl/pagos/mis-pagos';
+      AppLogger.httpRequest('GET', url, tag: _tag, headers: {'Authorization': 'Bearer ***'});
+      final start = DateTime.now();
       final response = await http.get(
-        Uri.parse('$baseUrl/pagos/mis-pagos'),
+        Uri.parse(url),
         headers: {'Authorization': 'Bearer $token'},
+      );
+      AppLogger.httpResponse(
+        'GET',
+        url,
+        response.statusCode,
+        tag: _tag,
+        body: response.body,
+        duration: DateTime.now().difference(start),
       );
 
       if (response.statusCode == 200) {
@@ -44,6 +58,7 @@ class PagosService {
       }
 
       if (response.statusCode == 401) {
+        AppLogger.warning('Sesion expirada al listar pagos', tag: _tag);
         return {
           'success': false,
           'error': 'Sesion expirada',
@@ -52,14 +67,17 @@ class PagosService {
       }
 
       if (response.statusCode == 403) {
+        AppLogger.warning('Sin permisos al listar pagos', tag: _tag);
         return {
           'success': false,
           'error': 'No tienes permisos para consultar pagos',
         };
       }
 
+      AppLogger.warning('Respuesta inesperada al listar pagos', tag: _tag);
       return {'success': false, 'error': 'Error al cargar pagos'};
     } catch (e) {
+      AppLogger.error('Excepcion al listar pagos', tag: _tag, error: e);
       return {'success': false, 'error': 'Error: $e'};
     }
   }
@@ -74,20 +92,36 @@ class PagosService {
     try {
       final token = await _getToken();
       if (token == null) {
+        AppLogger.warning('Token no encontrado al crear PaymentIntent', tag: _tag);
         return {'success': false, 'error': 'No autenticado'};
       }
 
+      final url = '$baseUrl/pagos/crear-intent';
+      final requestBody = {
+        'id_incidente': idIncidente,
+        'monto_total': montoTotal,
+        'id_metodo_pago': idMetodoPago,
+      };
+      AppLogger.httpRequest('POST', url, tag: _tag, headers: {
+        'Authorization': 'Bearer ***',
+        'Content-Type': 'application/json',
+      }, body: requestBody);
+      final start = DateTime.now();
       final response = await http.post(
-        Uri.parse('$baseUrl/pagos/crear-intent'),
+        Uri.parse(url),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'id_incidente': idIncidente,
-          'monto_total': montoTotal,
-          'id_metodo_pago': idMetodoPago,
-        }),
+        body: jsonEncode(requestBody),
+      );
+      AppLogger.httpResponse(
+        'POST',
+        url,
+        response.statusCode,
+        tag: _tag,
+        body: response.body,
+        duration: DateTime.now().difference(start),
       );
 
       if (response.statusCode == 200) {
@@ -101,12 +135,15 @@ class PagosService {
       }
 
       if (response.statusCode == 401) {
+        AppLogger.warning('Sesion expirada al crear PaymentIntent', tag: _tag);
         return {'success': false, 'error': 'Sesion expirada', 'code': 'AUTH_EXPIRED'};
       }
 
       final errorBody = _parseError(response.body);
+      AppLogger.warning('Error al crear PaymentIntent: $errorBody', tag: _tag);
       return {'success': false, 'error': errorBody};
     } catch (e) {
+      AppLogger.error('Excepcion al crear PaymentIntent', tag: _tag, error: e);
       return {'success': false, 'error': 'Error de red: $e'};
     }
   }
@@ -117,16 +154,32 @@ class PagosService {
     try {
       final token = await _getToken();
       if (token == null) {
+        AppLogger.warning('Token no encontrado al confirmar pago', tag: _tag);
         return {'success': false, 'error': 'No autenticado'};
       }
 
+      final url = '$baseUrl/pagos/confirmar-app';
+      final requestBody = {'payment_intent_id': paymentIntentId};
+      AppLogger.httpRequest('POST', url, tag: _tag, headers: {
+        'Authorization': 'Bearer ***',
+        'Content-Type': 'application/json',
+      }, body: requestBody);
+      final start = DateTime.now();
       final response = await http.post(
-        Uri.parse('$baseUrl/pagos/confirmar-app'),
+        Uri.parse(url),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'payment_intent_id': paymentIntentId}),
+        body: jsonEncode(requestBody),
+      );
+      AppLogger.httpResponse(
+        'POST',
+        url,
+        response.statusCode,
+        tag: _tag,
+        body: response.body,
+        duration: DateTime.now().difference(start),
       );
 
       if (response.statusCode == 200) {
@@ -135,8 +188,10 @@ class PagosService {
       }
 
       final errorBody = _parseError(response.body);
+      AppLogger.warning('Error al confirmar pago: $errorBody', tag: _tag);
       return {'success': false, 'error': errorBody};
     } catch (e) {
+      AppLogger.error('Excepcion al confirmar pago', tag: _tag, error: e);
       return {'success': false, 'error': 'Error de red: $e'};
     }
   }

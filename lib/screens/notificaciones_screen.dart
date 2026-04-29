@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/incidente.dart';
+import '../services/incidente_service.dart';
 import '../services/notification_service.dart';
 
 class NotificacionesScreen extends StatefulWidget {
@@ -11,6 +13,7 @@ class NotificacionesScreen extends StatefulWidget {
 
 class _NotificacionesScreenState extends State<NotificacionesScreen> {
   final NotificationService _notificationService = NotificationService();
+  final IncidenteService _incidenteService = IncidenteService();
 
   bool _loading = true;
   bool _soloNoLeidas = false;
@@ -46,6 +49,55 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         item['leido'] = true;
       });
     }
+  }
+
+  bool _esNotificacionCalificar(String titulo, String mensaje) {
+    final t = titulo.toLowerCase();
+    final m = mensaje.toLowerCase();
+    return t.contains('califica') || m.contains('califica');
+  }
+
+  Future<void> _abrirCalificacionSiAplica(Map<String, dynamic> item) async {
+    final titulo = (item['titulo'] ?? '').toString();
+    final mensaje = (item['mensaje'] ?? '').toString();
+    if (!_esNotificacionCalificar(titulo, mensaje)) return;
+
+    final idIncidenteRaw = item['id_incidente'];
+    final idIncidente = idIncidenteRaw is int
+        ? idIncidenteRaw
+        : int.tryParse(idIncidenteRaw?.toString() ?? '');
+    if (idIncidente == null || idIncidente == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Incidente no disponible')),
+      );
+      return;
+    }
+
+    final result = await _incidenteService.obtenerIncidencia(idIncidente);
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      final inc = result['incidente'] as IncidenteDetalle;
+      if (inc.evaluado) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ya calificaste este servicio')),
+        );
+        return;
+      }
+
+      final updated = await Navigator.of(context).pushNamed(
+        '/calificar-servicio',
+        arguments: idIncidente,
+      );
+      if (updated == true) {
+        _cargar();
+      }
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['error']?.toString() ?? 'Error al abrir')),
+    );
   }
 
   String _fechaBonita(dynamic raw) {
@@ -122,6 +174,10 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               isThreeLine: true,
+                              onTap: () async {
+                                await _marcarLeida(item);
+                                await _abrirCalificacionSiAplica(item);
+                              },
                               trailing: leido
                                   ? null
                                   : TextButton(

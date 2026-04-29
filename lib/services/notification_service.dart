@@ -170,6 +170,7 @@ class NotificationService {
     }
 
     final tipo = data['tipo']?.toString() ?? '';
+    final accion = data['accion']?.toString() ?? '';
     final idIncidente = int.tryParse(data['id_incidente']?.toString() ?? '');
 
     switch (tipo) {
@@ -177,6 +178,12 @@ class NotificationService {
         nav.pushNamed('/mis-pagos');
         break;
       case 'solicitar_resena':
+        if (accion == 'calificar_taller' && idIncidente != null) {
+          nav.pushNamed('/calificar-servicio', arguments: idIncidente);
+          break;
+        }
+        nav.pushNamed('/historial-emergencias');
+        break;
       case 'estado_asignacion':
       case 'asignacion_aceptada':
         nav.pushNamed('/historial-emergencias');

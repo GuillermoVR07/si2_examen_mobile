@@ -169,6 +169,66 @@ class IncidenteService {
     }
   }
 
+  /// ⭐ EVALUAR SERVICIO
+  Future<Map<String, dynamic>> evaluarServicio({
+    required int idIncidente,
+    required int estrellas,
+    String? comentario,
+  }) async {
+    try {
+      print('[INCIDENTE] ⭐ Evaluando servicio #$idIncidente...');
+
+      final token = await _getToken();
+      if (token == null) {
+        return {'success': false, 'error': 'No autenticado'};
+      }
+
+      final body = {
+        'estrellas': estrellas,
+        'comentario': comentario?.trim().isEmpty == true ? null : comentario,
+      };
+
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/incidencias/$idIncidente/evaluar'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 201) {
+        return {'success': true};
+      }
+
+      if (response.statusCode == 409) {
+        return {
+          'success': false,
+          'error': 'Ya evaluaste este servicio',
+          'code': 'ALREADY_RATED',
+        };
+      }
+
+      if (response.statusCode == 401) {
+        return {
+          'success': false,
+          'error': 'Sesión expirada',
+          'code': 'AUTH_EXPIRED',
+        };
+      }
+
+      return {
+        'success': false,
+        'error': 'Error al enviar evaluación',
+      };
+    } catch (e) {
+      print('[INCIDENTE] ❌ Exception: $e');
+      return {'success': false, 'error': 'Error: $e'};
+    }
+  }
+
   /// 🔧 OBTENER UBICACIÓN DEL TÉCNICO ASIGNADO
   Future<Map<String, dynamic>> obtenerUbicacionTecnico(int idIncidente) async {
     try {
@@ -425,6 +485,33 @@ class IncidenteService {
     } catch (e) {
       print('[GPS] ❌ Error: $e');
       return false;
+    }
+  }
+
+  /// ❌ CANCELAR INCIDENTE
+  Future<Map<String, dynamic>> cancelarIncidente(int idIncidente) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return {'success': false, 'error': 'No autenticado'};
+
+      final response = await http
+          .patch(
+            Uri.parse('$baseUrl/incidencias/$idIncidente/cancelar'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return {'success': true};
+      } else if (response.statusCode == 400 || response.statusCode == 404) {
+        final body = jsonDecode(response.body);
+        return {'success': false, 'error': body['detail'] ?? 'No se pudo cancelar'};
+      } else if (response.statusCode == 401) {
+        return {'success': false, 'error': 'Sesión expirada', 'code': 'AUTH_EXPIRED'};
+      }
+      return {'success': false, 'error': 'Error ${response.statusCode}'};
+    } catch (e) {
+      return {'success': false, 'error': 'Error: $e'};
     }
   }
 
